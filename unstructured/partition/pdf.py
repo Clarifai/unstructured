@@ -5,6 +5,7 @@ import copy
 import io
 import os
 import re
+import tempfile
 import warnings
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, Optional, cast
@@ -80,13 +81,13 @@ from unstructured.partition.strategies import determine_pdf_or_image_strategy, v
 from unstructured.partition.text import element_from_text
 from unstructured.partition.utils.config import env_config
 from unstructured.partition.utils.constants import (
+    OCR_AGENT_CLARIFAI,
     OCR_AGENT_PADDLE,
     SORT_MODE_BASIC,
     SORT_MODE_DONT,
     SORT_MODE_XY_CUT,
     OCRMode,
     PartitionStrategy,
-    OCR_AGENT_CLARIFAI,
 )
 from unstructured.partition.utils.sorting import coord_has_valid_points, sort_page_elements
 from unstructured.patches.pdfminer import parse_keyword
@@ -138,7 +139,6 @@ def partition_pdf(
     extract_forms: bool = False,
     form_extraction_skip_tables: bool = True,
     clarifai_ocr_model: Optional[str] = None,
-
     **kwargs: Any,
 ) -> list[Element]:
     """Parses a pdf document into a list of interpreted elements.
@@ -223,7 +223,7 @@ def partition_pdf(
         starting_page_number=starting_page_number,
         extract_forms=extract_forms,
         form_extraction_skip_tables=form_extraction_skip_tables,
-        clarifai_ocr_model = clarifai_ocr_model,
+        clarifai_ocr_model=clarifai_ocr_model,
         **kwargs,
     )
 
@@ -567,8 +567,7 @@ def _partition_pdf_or_image_local(
 ) -> list[Element]:
     """Partition using package installed locally"""
     from unstructured_inference.inference.layout import (
-        process_data_with_model,
-        process_file_with_model,
+        DocumentLayout,
     )
 
     from unstructured.partition.pdf_image.ocr import process_data_with_ocr, process_file_with_ocr
@@ -576,6 +575,7 @@ def _partition_pdf_or_image_local(
         process_data_with_pdfminer,
         process_file_with_pdfminer,
     )
+    from unstructured.partition.utils.clarifai_yolox import ClarifaiYoloXModel
 
     if not is_image:
         check_pdf_hi_res_max_pages_exceeded(
@@ -598,12 +598,11 @@ def _partition_pdf_or_image_local(
 
     skip_analysis_dump = env_config.ANALYSIS_DUMP_OD_SKIP
 
+    layout_detection_model = ClarifaiYoloXModel()
+
     if file is None:
-        inferred_document_layout = process_file_with_model(
-            filename,
-            is_image=is_image,
-            model_name=hi_res_model_name,
-            pdf_image_dpi=pdf_image_dpi,
+        inferred_document_layout = DocumentLayout.from_file(
+            filename, detection_model=layout_detection_model, pdf_image_dpi=pdf_image_dpi
         )
 
         if hi_res_model_name.startswith("chipper"):
@@ -654,12 +653,14 @@ def _partition_pdf_or_image_local(
                 ocr_layout_dumper=ocr_layout_dumper,
             )
     else:
-        inferred_document_layout = process_data_with_model(
-            file,
-            is_image=is_image,
-            model_name=hi_res_model_name,
-            pdf_image_dpi=pdf_image_dpi,
-        )
+        with tempfile.TemporaryDirectory() as tmp_dir_path:
+            file_path = os.path.join(tmp_dir_path, "document.pdf")
+            with open(file_path, "wb") as f:
+                f.write(file.read())
+                f.flush()
+            inferred_document_layout = DocumentLayout.from_file(
+                file_path, detection_model=layout_detection_model, pdf_image_dpi=pdf_image_dpi
+            )
 
         if hi_res_model_name.startswith("chipper"):
             # NOTE(alan): We shouldn't do OCR with chipper
@@ -921,15 +922,17 @@ def _partition_pdf_or_image_with_ocr_from_image(
     """Extract `unstructured` elements from an image using OCR and perform partitioning."""
 
     from unstructured.partition.utils.ocr_models.ocr_interface import OCRAgent
-    
-    os.environ['OCR_AGENT'] = OCR_AGENT_CLARIFAI
+
+    os.environ["OCR_AGENT"] = OCR_AGENT_CLARIFAI
     ocr_agent = OCRAgent.get_agent(language=ocr_languages)
 
     # NOTE(christine): `pytesseract.image_to_string()` returns sorted text
     if ocr_agent.is_text_sorted():
         sort_mode = SORT_MODE_DONT
 
-    ocr_data = ocr_agent.get_layout_elements_from_image(image=image,clarifai_ocr_model=clarifai_ocr_model)
+    ocr_data = ocr_agent.get_layout_elements_from_image(
+        image=image, clarifai_ocr_model=clarifai_ocr_model
+    )
 
     metadata = ElementMetadata(
         last_modified=metadata_last_modified,
