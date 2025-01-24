@@ -50,6 +50,7 @@ OCR_AGENT_MODULES_WHITELIST = os.getenv(
 LAYOUT_DEFAULT_CLARIFAI_MODEL_URL = (
     "https://clarifai.com/mogith-p-n/YOLOx-model-training/models/model-hps-yolox-detection"
 )
+LAYOUT_DEFAULT_CLARIFAI_MODEL = "clarifai_yolox"
 
 UNSTRUCTURED_INCLUDE_DEBUG_METADATA = os.getenv("UNSTRUCTURED_INCLUDE_DEBUG_METADATA", False)
 

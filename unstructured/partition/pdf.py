@@ -81,6 +81,7 @@ from unstructured.partition.strategies import determine_pdf_or_image_strategy, v
 from unstructured.partition.text import element_from_text
 from unstructured.partition.utils.config import env_config
 from unstructured.partition.utils.constants import (
+    LAYOUT_DEFAULT_CLARIFAI_MODEL,
     OCR_AGENT_CLARIFAI,
     OCR_AGENT_PADDLE,
     SORT_MODE_BASIC,
@@ -103,15 +104,12 @@ psparser.PSBaseParser._parse_keyword = parse_keyword  # type: ignore
 RE_MULTISPACE_INCLUDING_NEWLINES = re.compile(pattern=r"\s+", flags=re.DOTALL)
 
 
-@requires_dependencies("unstructured_inference")
 def default_hi_res_model() -> str:
     # a light config for the hi res model; this is not defined as a constant so that no setting of
     # the default hi res model name is done on importing of this submodule; this allows (if user
     # prefers) for setting env after importing the sub module and changing the default model name
 
-    from unstructured_inference.models.base import DEFAULT_MODEL
-
-    return os.environ.get("UNSTRUCTURED_HI_RES_MODEL_NAME", DEFAULT_MODEL)
+    return os.environ.get("CLARIFAI_HI_RES_MODEL_NAME", LAYOUT_DEFAULT_CLARIFAI_MODEL)
 
 
 @process_metadata()
@@ -568,6 +566,8 @@ def _partition_pdf_or_image_local(
     """Partition using package installed locally"""
     from unstructured_inference.inference.layout import (
         DocumentLayout,
+        process_data_with_model,
+        process_file_with_model,
     )
 
     from unstructured.partition.pdf_image.ocr import process_data_with_ocr, process_file_with_ocr
@@ -598,12 +598,25 @@ def _partition_pdf_or_image_local(
 
     skip_analysis_dump = env_config.ANALYSIS_DUMP_OD_SKIP
 
-    layout_detection_model = ClarifaiYoloXModel()
+    if hi_res_model_name == LAYOUT_DEFAULT_CLARIFAI_MODEL:
+        layout_detection_model = ClarifaiYoloXModel()
 
     if file is None:
-        inferred_document_layout = DocumentLayout.from_file(
-            filename, detection_model=layout_detection_model, pdf_image_dpi=pdf_image_dpi
-        )
+        if hi_res_model_name == LAYOUT_DEFAULT_CLARIFAI_MODEL:
+            inferred_document_layout = (
+                DocumentLayout.from_image_file(filename, detection_model=layout_detection_model)
+                if is_image
+                else DocumentLayout.from_file(
+                    filename, detection_model=layout_detection_model, pdf_image_dpi=pdf_image_dpi
+                )
+            )
+        else:
+            inferred_document_layout = process_file_with_model(
+                filename,
+                is_image=is_image,
+                model_name=hi_res_model_name,
+                pdf_image_dpi=pdf_image_dpi,
+            )
 
         if hi_res_model_name.startswith("chipper"):
             # NOTE(alan): We shouldn't do OCR with chipper
@@ -653,13 +666,27 @@ def _partition_pdf_or_image_local(
                 ocr_layout_dumper=ocr_layout_dumper,
             )
     else:
-        with tempfile.TemporaryDirectory() as tmp_dir_path:
-            file_path = os.path.join(tmp_dir_path, "document.pdf")
-            with open(file_path, "wb") as f:
-                f.write(file.read())
-                f.flush()
-            inferred_document_layout = DocumentLayout.from_file(
-                file_path, detection_model=layout_detection_model, pdf_image_dpi=pdf_image_dpi
+        if hi_res_model_name == LAYOUT_DEFAULT_CLARIFAI_MODEL:
+            with tempfile.TemporaryDirectory() as tmp_dir_path:
+                file_path = os.path.join(tmp_dir_path, "document.pdf")
+                with open(file_path, "wb") as f:
+                    f.write(file.read())
+                    f.flush()
+                inferred_document_layout = (
+                    DocumentLayout.from_image_file(filename, detection_model=layout_detection_model)
+                    if is_image
+                    else DocumentLayout.from_file(
+                        filename,
+                        detection_model=layout_detection_model,
+                        pdf_image_dpi=pdf_image_dpi,
+                    )
+                )
+        else:
+            inferred_document_layout = process_data_with_model(
+                file,
+                is_image=is_image,
+                model_name=hi_res_model_name,
+                pdf_image_dpi=pdf_image_dpi,
             )
 
         if hi_res_model_name.startswith("chipper"):
