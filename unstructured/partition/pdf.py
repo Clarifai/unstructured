@@ -566,8 +566,6 @@ def _partition_pdf_or_image_local(
     """Partition using package installed locally"""
     from unstructured_inference.inference.layout import (
         DocumentLayout,
-        process_data_with_model,
-        process_file_with_model,
     )
 
     from unstructured.partition.pdf_image.ocr import process_data_with_ocr, process_file_with_ocr
@@ -600,23 +598,17 @@ def _partition_pdf_or_image_local(
 
     if hi_res_model_name == LAYOUT_DEFAULT_CLARIFAI_MODEL:
         layout_detection_model = ClarifaiYoloXModel()
+    else:
+        raise Exception(f"Unknown hi_res_model_name: {hi_res_model_name}")
 
     if file is None:
-        if hi_res_model_name == LAYOUT_DEFAULT_CLARIFAI_MODEL:
-            inferred_document_layout = (
-                DocumentLayout.from_image_file(filename, detection_model=layout_detection_model)
-                if is_image
-                else DocumentLayout.from_file(
-                    filename, detection_model=layout_detection_model, pdf_image_dpi=pdf_image_dpi
-                )
+        inferred_document_layout = (
+            DocumentLayout.from_image_file(filename, detection_model=layout_detection_model)
+            if is_image
+            else DocumentLayout.from_file(
+                filename, detection_model=layout_detection_model, pdf_image_dpi=pdf_image_dpi
             )
-        else:
-            inferred_document_layout = process_file_with_model(
-                filename,
-                is_image=is_image,
-                model_name=hi_res_model_name,
-                pdf_image_dpi=pdf_image_dpi,
-            )
+        )
 
         if hi_res_model_name.startswith("chipper"):
             # NOTE(alan): We shouldn't do OCR with chipper
@@ -666,27 +658,19 @@ def _partition_pdf_or_image_local(
                 ocr_layout_dumper=ocr_layout_dumper,
             )
     else:
-        if hi_res_model_name == LAYOUT_DEFAULT_CLARIFAI_MODEL:
-            with tempfile.TemporaryDirectory() as tmp_dir_path:
-                file_path = os.path.join(tmp_dir_path, "document.pdf")
-                with open(file_path, "wb") as f:
-                    f.write(file.read())
-                    f.flush()
-                inferred_document_layout = (
-                    DocumentLayout.from_image_file(filename, detection_model=layout_detection_model)
-                    if is_image
-                    else DocumentLayout.from_file(
-                        filename,
-                        detection_model=layout_detection_model,
-                        pdf_image_dpi=pdf_image_dpi,
-                    )
+        with tempfile.TemporaryDirectory() as tmp_dir_path:
+            file_path = os.path.join(tmp_dir_path, "document.pdf")
+            with open(file_path, "wb") as f:
+                f.write(file.read())
+                f.flush()
+            inferred_document_layout = (
+                DocumentLayout.from_image_file(filename, detection_model=layout_detection_model)
+                if is_image
+                else DocumentLayout.from_file(
+                    filename,
+                    detection_model=layout_detection_model,
+                    pdf_image_dpi=pdf_image_dpi,
                 )
-        else:
-            inferred_document_layout = process_data_with_model(
-                file,
-                is_image=is_image,
-                model_name=hi_res_model_name,
-                pdf_image_dpi=pdf_image_dpi,
             )
 
         if hi_res_model_name.startswith("chipper"):

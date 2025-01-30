@@ -48,7 +48,7 @@ OCR_AGENT_MODULES_WHITELIST = os.getenv(
 ).split(",")
 
 LAYOUT_DEFAULT_CLARIFAI_MODEL_URL = (
-    "https://clarifai.com/mogith-p-n/YOLOx-model-training/models/model-hps-yolox-detection"
+    "https://clarifai.com/clarifai/Extract-layout-detection/models/model-hps-yolox-detection"
 )
 LAYOUT_DEFAULT_CLARIFAI_MODEL = "clarifai_yolox"
 
