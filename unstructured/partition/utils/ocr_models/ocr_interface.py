@@ -13,7 +13,6 @@ from unstructured.partition.utils.constants import (
     OCR_AGENT_PADDLE_OLD,
     OCR_AGENT_TESSERACT,
     OCR_AGENT_TESSERACT_OLD,
-    OCR_AGENT_CLARIFAI
 )
 
 if TYPE_CHECKING:

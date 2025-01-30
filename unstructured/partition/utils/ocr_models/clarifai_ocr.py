@@ -1,25 +1,22 @@
 from typing import TYPE_CHECKING, List, Optional
 
-import numpy as np
-from PIL import Image as PILImage
 from clarifai.client.model import Model
+from PIL import Image as PILImage
+
 from unstructured.documents.elements import ElementType
 from unstructured.logger import logger
-from unstructured.partition.utils.constants import (
-    Source,
-    OCR_DEFAULT_CLARIFAI_MODEL_URL
-)
+from unstructured.partition.utils.constants import OCR_DEFAULT_CLARIFAI_MODEL_URL, Source
 from unstructured.partition.utils.ocr_models.ocr_interface import OCRAgent
 from unstructured.utils import requires_dependencies
 
 if TYPE_CHECKING:
     from unstructured_inference.inference.elements import TextRegion
-    from unstructured_inference.inference.layoutelement import LayoutElemen
-
+    from unstructured_inference.inference.layoutelement import LayoutElement
 
 
 class OCRAgentClarifai(OCRAgent):
     """OCR service implementation for Clarifai."""
+
     def __init__(self, language: str = "en"):
         self.agent = self.load_agent(language)
 
@@ -34,24 +31,30 @@ class OCRAgentClarifai(OCRAgent):
         return "\n\n".join([r.text for r in ocr_regions])
 
     def get_layout_from_image(
-        self, image: PILImage, clarifai_model_url: Optional[str] =None, ocr_languages: str = "eng",
-    ) -> List["TextRegion"]:
+        self,
+        image: PILImage,
+        clarifai_model_url: Optional[str] = None,
+        ocr_languages: str = "eng",
+    ) -> List[TextRegion]:
         """Get the OCR regions from image as a list of text regions with paddle."""
-        import base64
+
         logger.info("Processing entire page OCR with paddle...")
 
         image_bytes = self.pil_image_to_bytes(image)
-        ocr_data = Model(clarifai_model_url).predict_by_bytes(image_bytes , input_type="image")
+        ocr_data = Model(clarifai_model_url).predict_by_bytes(image_bytes, input_type="image")
         ocr_regions = self.parse_data(ocr_data)
 
         return ocr_regions
 
     @requires_dependencies("unstructured_inference")
     def get_layout_elements_from_image(
-        self, image: PILImage, ocr_languages: str = "eng",
+        self,
+        image: PILImage,
+        ocr_languages: str = "eng",
         clarifai_ocr_model: Optional[str] = None,
-    ) -> List["LayoutElement"]:
+    ) -> List[LayoutElement]:
         from unstructured.partition.pdf_image.inference_utils import build_layout_element
+
         if not clarifai_ocr_model:
             clarifai_ocr_model = OCR_DEFAULT_CLARIFAI_MODEL_URL
         ocr_regions = self.get_layout_from_image(
@@ -74,7 +77,7 @@ class OCRAgentClarifai(OCRAgent):
         ]
 
     @requires_dependencies("unstructured_inference")
-    def parse_data(self, ocr_data, zoom: float = 1) -> List["TextRegion"]:
+    def parse_data(self, ocr_data, zoom: float = 1) -> List[TextRegion]:
         """
         Parse the OCR result data to extract a list of TextRegion objects from
         tesseract.
@@ -105,7 +108,7 @@ class OCRAgentClarifai(OCRAgent):
         from unstructured.partition.pdf_image.inference_utils import build_text_region_from_coords
 
         text_regions = []
-        #add try catch block
+        # add try catch block
         for data in ocr_data.outputs[0].data.regions:
             x1 = data.region_info.bounding_box.top_row
             y1 = data.region_info.bounding_box.left_col
@@ -125,6 +128,7 @@ class OCRAgentClarifai(OCRAgent):
 
     def image_to_byte_array(self, image: PILImage) -> bytes:
         import io
+
         # BytesIO is a file-like buffer stored in memory
         imgByteArr = io.BytesIO()
         # image.save expects a file-like as a argument
@@ -135,6 +139,7 @@ class OCRAgentClarifai(OCRAgent):
 
     def pil_image_to_bytes(self, image: PILImage) -> bytes:
         from io import BytesIO
+
         with BytesIO() as output:
             image.save(output, format="PNG")
             return output.getvalue()

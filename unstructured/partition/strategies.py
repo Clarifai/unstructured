@@ -79,10 +79,10 @@ def determine_pdf_or_image_strategy(
             logger.warning("Falling back to partitioning with fast.")
             return PartitionStrategy.FAST
         else:
-            #clarifai is not installed and the text of the PDF is not extractable
+            # clarifai is not installed and the text of the PDF is not extractable
             raise ImportError(
-                f"clarifai is not installed. "
-                f"""Please install using `pip install clarifai`.""")
+                "clarifai is not installed. " """Please install using `pip install clarifai`."""
+            )
 
     return strategy
 

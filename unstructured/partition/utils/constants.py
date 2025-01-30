@@ -29,7 +29,9 @@ SORT_MODE_DONT = "dont"
 OCR_AGENT_TESSERACT_OLD = "tesseract"
 OCR_AGENT_PADDLE_OLD = "paddle"
 
-OCR_DEFAULT_CLARIFAI_MODEL_URL = 'https://clarifai.com/clarifai/main/models/ocr-scene-english-paddleocr'
+OCR_DEFAULT_CLARIFAI_MODEL_URL = (
+    "https://clarifai.com/clarifai/main/models/ocr-scene-english-paddleocr"
+)
 
 OCR_AGENT_TESSERACT = "unstructured.partition.utils.ocr_models.tesseract_ocr.OCRAgentTesseract"
 OCR_AGENT_PADDLE = "unstructured.partition.utils.ocr_models.paddle_ocr.OCRAgentPaddle"
@@ -44,6 +46,11 @@ OCR_AGENT_MODULES_WHITELIST = os.getenv(
     "unstructured.partition.utils.ocr_models.clarifai_ocr,"
     "unstructured.partition.utils.ocr_models.paddle_ocr",
 ).split(",")
+
+LAYOUT_DEFAULT_CLARIFAI_MODEL_URL = (
+    "https://clarifai.com/clarifai/Extract-layout-detection/models/model-hps-yolox-detection"
+)
+LAYOUT_DEFAULT_CLARIFAI_MODEL = "clarifai_yolox"
 
 UNSTRUCTURED_INCLUDE_DEBUG_METADATA = os.getenv("UNSTRUCTURED_INCLUDE_DEBUG_METADATA", False)
 
